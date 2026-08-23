@@ -121,7 +121,7 @@ describe('No-root-index session policy', () => {
     expect(instructions).not.toMatch(/inactive/i);
     // It steers the agent to target a project explicitly via projectPath...
     expect(instructions).toMatch(/projectPath/);
-    expect(instructions).toMatch(/codegraph_explore/);
+    expect(instructions).toMatch(/narrowest exposed tool/i);
     expect(instructions).toMatch(/codegraph init/);
     // ...but it is NOT the full single-project playbook (that's sent only when
     // the root itself is indexed — keeps the common case tight).
@@ -175,7 +175,7 @@ describe('No-root-index session policy', () => {
     child = spawnServer(tempDir);
     const init = await request(child, { id: 0, method: 'initialize', params: initializeParams(tempDir) });
     const instructions = (init.result as { instructions: string }).instructions;
-    expect(instructions).toMatch(/How to query/);
+    expect(instructions).toMatch(/Tool selection/);
     expect(instructions).not.toMatch(/inactive/i);
 
     const list = await request(child, { id: 1, method: 'tools/list' });
