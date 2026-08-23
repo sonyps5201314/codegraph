@@ -215,7 +215,9 @@ describe('Installer targets — partial-state idempotency', () => {
     expect(fs.existsSync(agentsMd)).toBe(true);
     const body = fs.readFileSync(agentsMd, 'utf-8');
     expect(body).toContain('## CodeGraph');
-    expect(body).toContain('codegraph explore');
+    expect(body).toContain('unconditional preference');
+    expect(body).toContain('automatically run `codegraph init`');
+    expect(body).not.toContain('skip CodeGraph entirely');
     // Re-install is fully unchanged (byte-equal block → idempotent).
     const second = codex.install('global', { autoAllow: false });
     for (const f of second.files) expect(f.action).toBe('unchanged');
@@ -235,7 +237,8 @@ describe('Installer targets — partial-state idempotency', () => {
     expect(body).toContain('Be terse.');
     // Self-heal: the stale pre-#529 body is gone, the current block is in.
     expect(body).not.toContain('Prefer `codegraph_search`');
-    expect(body).toContain('codegraph explore');
+    expect(body).toContain('unconditional preference');
+    expect(body).toContain('automatically run `codegraph init`');
     const mdEntry = result.files.find((f) => f.path.endsWith('AGENTS.md'));
     expect(mdEntry?.action).toBe('updated');
   });
@@ -252,7 +255,7 @@ describe('Installer targets — partial-state idempotency', () => {
 
     const toml = fs.readFileSync(path.join(process.cwd(), '.codex', 'config.toml'), 'utf-8');
     expect(toml).toContain('[mcp_servers.codegraph]');
-    expect(fs.readFileSync(path.join(process.cwd(), 'AGENTS.md'), 'utf-8')).toContain('codegraph explore');
+    expect(fs.readFileSync(path.join(process.cwd(), 'AGENTS.md'), 'utf-8')).toContain('unconditional preference');
 
     // The project layer is only applied in a trusted project, so say so
     // instead of reporting a silent success.
@@ -348,7 +351,7 @@ describe('Installer targets — partial-state idempotency', () => {
     const result = opencode.install('global', { autoAllow: true });
     const agentsMd = path.join(tmpHome, '.config', 'opencode', 'AGENTS.md');
     expect(fs.existsSync(agentsMd)).toBe(true);
-    expect(fs.readFileSync(agentsMd, 'utf-8')).toContain('codegraph explore');
+    expect(fs.readFileSync(agentsMd, 'utf-8')).toContain('unconditional preference');
     expect(result.files.find((f) => f.path.endsWith('AGENTS.md'))?.action).toBe('created');
   });
 
@@ -365,7 +368,7 @@ describe('Installer targets — partial-state idempotency', () => {
     expect(body).toContain('# My personal opencode instructions');
     expect(body).toContain('Always respond in pirate.');
     expect(body).not.toContain('Prefer `codegraph_search`');
-    expect(body).toContain('codegraph explore');
+    expect(body).toContain('unconditional preference');
     expect(result.files.find((f) => f.path.endsWith('AGENTS.md'))?.action).toBe('updated');
   });
 
@@ -402,7 +405,7 @@ describe('Installer targets — partial-state idempotency', () => {
     expect(result.files.some((f) => f.path === settings)).toBe(true);
     expect(result.files.some((f) => f.path === geminiMd)).toBe(true);
     expect(fs.existsSync(geminiMd)).toBe(true);
-    expect(fs.readFileSync(geminiMd, 'utf-8')).toContain('codegraph explore');
+    expect(fs.readFileSync(geminiMd, 'utf-8')).toContain('unconditional preference');
 
     const cfg = JSON.parse(fs.readFileSync(settings, 'utf-8'));
     expect(cfg.mcpServers.codegraph).toEqual({ type: 'stdio', command: 'codegraph', args: ['serve', '--mcp'] });
@@ -985,7 +988,7 @@ describe('Installer targets — partial-state idempotency', () => {
     expect(fs.existsSync(claudeMd)).toBe(true);
     const body = fs.readFileSync(claudeMd, 'utf-8');
     expect(body).toContain('## CodeGraph');
-    expect(body).toContain('codegraph explore');
+    expect(body).toContain('unconditional preference');
     expect(result.files.find((f) => f.path.endsWith('CLAUDE.md'))?.action).toBe('created');
   });
 
@@ -1001,7 +1004,7 @@ describe('Installer targets — partial-state idempotency', () => {
     expect(body).toContain('# My project rules');
     expect(body).toContain('Use tabs.');
     expect(body).not.toContain('Prefer `codegraph_search`');
-    expect(body).toContain('codegraph explore');
+    expect(body).toContain('unconditional preference');
     expect(result.files.find((f) => f.path.endsWith('CLAUDE.md'))?.action).toBe('updated');
   });
 
@@ -1684,7 +1687,7 @@ describe('Installer — refreshTargets sweep (codegraph install --refresh)', () 
 
     const md = fs.readFileSync(claudeMd, 'utf-8');
     expect(md).not.toContain('codegraph_search');
-    expect(md).toContain('codegraph_explore');
+    expect(md).toContain('unconditional preference');
   });
 
   it('never performs a first install — unconfigured agents stay untouched', () => {

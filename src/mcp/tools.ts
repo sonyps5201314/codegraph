@@ -1183,7 +1183,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     name: 'codegraph_explore',
-    description: 'PRIMARY TOOL — call FIRST for almost any question OR before an edit: how does X work, architecture, a bug, where/what is X, surveying an area, or the symbols you are about to change. Returns the verbatim source of the relevant symbols grouped by file in ONE capped call (Read-equivalent — treat the shown source as already Read; do NOT re-open those files), plus the call path among them. Query can be a natural-language question OR a bag of symbol/file names. Usually the ONLY call you need — more accurate context, in far fewer tokens and round-trips than a search/Read/Grep loop.',
+    description: 'Explore a multi-symbol architecture, end-to-end flow, unfamiliar area, or unknown-scope question in one capped call. Returns the relevant symbols\' verbatim source grouped by file plus call paths between them. Query can be a natural-language question or a bag of symbol/file names. When a narrower exposed tool directly answers a focused file, symbol, caller/callee, impact, search, tree, or status question, use that tool instead.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1481,7 +1481,7 @@ export class ToolHandler {
    */
   getTools(): ToolDefinition[] {
     const allow = this.toolAllowlist();
-    // No explicit allowlist → the default 4-tool surface (see
+    // No explicit allowlist → the default explore-only surface (see
     // DEFAULT_MCP_TOOLS for the evidence). An allowlist replaces the
     // default entirely, so any defined tool can be re-enabled.
     let visible = allow
