@@ -27,6 +27,7 @@ describe('large-corpus regression fixes', () => {
   });
 
   it('records an oversized file during a fresh index so sync does not retry it (#1557)', async () => {
+    process.env.CODEGRAPH_MAX_FILE_SIZE = '1MB';
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-skipped-file-'));
     try {
       fs.writeFileSync(path.join(dir, 'oversized.py'), 'value = 1\n'.repeat(120_000));
@@ -38,11 +39,13 @@ describe('large-corpus regression fixes', () => {
       expect(synced.filesAdded).toBe(0);
       cg.close();
     } finally {
+      delete process.env.CODEGRAPH_MAX_FILE_SIZE;
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 
   it('records an oversized file through the single-file indexing path (#1557)', async () => {
+    process.env.CODEGRAPH_MAX_FILE_SIZE = '1MB';
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-single-skipped-file-'));
     try {
       fs.writeFileSync(path.join(dir, 'oversized.py'), 'value = 1\n'.repeat(120_000));
@@ -55,6 +58,7 @@ describe('large-corpus regression fixes', () => {
       expect(synced.filesModified).toBe(0);
       cg.close();
     } finally {
+      delete process.env.CODEGRAPH_MAX_FILE_SIZE;
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
@@ -139,5 +143,15 @@ describe('failure markers vs later real results (#1557 × #1541)', () => {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it('parses custom max file sizes correctly', async () => {
+    const { parseMaxFileSize, DEFAULT_MAX_FILE_SIZE } = await import('../src/extraction/index');
+    expect(parseMaxFileSize(undefined)).toBe(DEFAULT_MAX_FILE_SIZE);
+    expect(parseMaxFileSize('10MB')).toBe(10 * 1024 * 1024);
+    expect(parseMaxFileSize('5M')).toBe(5 * 1024 * 1024);
+    expect(parseMaxFileSize('500KB')).toBe(500 * 1024);
+    expect(parseMaxFileSize('2097152')).toBe(2097152);
+    expect(parseMaxFileSize('invalid')).toBe(DEFAULT_MAX_FILE_SIZE);
   });
 });
