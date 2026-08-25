@@ -37,8 +37,8 @@ import { createYielder, type MaybeYield } from '../resolution/cooperative-yield'
 import { resurrectRefFromDroppedEdge } from '../resolution/resurrect-ref';
 import { createImportReader, reopenReferencesThroughRemovedFiles } from '../resolution/module-importers';
 import { manifestEvidence, type ManifestEvidence } from '../resolution/workspace-packages';
-import { MAX_SOURCE_FILE_SIZE_BYTES, oversizeStamp, readBoundedSource, readBoundedSourceSync } from '../file-limits';
-export { oversizeStamp };
+import { readBoundedSource, readBoundedSourceSync, oversizeStamp, getMaxFileSize } from '../file-limits';
+export { DEFAULT_MAX_FILE_SIZE, parseMaxFileSize, getMaxFileSize, MAX_SOURCE_FILE_SIZE_BYTES, oversizeStamp } from '../file-limits';
 
 /**
  * Number of files to read in parallel during indexing.
@@ -247,6 +247,7 @@ function isMpegTsBytes(filePath: string, bytes: Buffer): boolean {
   logDebug('Skipping MPEG transport stream named .ts — not TypeScript', { filePath });
   return true;
 }
+
 
 /**
  * Directory names that are dependency, build, cache, or tooling output across the
@@ -2977,13 +2978,14 @@ export class ExtractionOrchestrator {
         // wasting WASM heap and the worker recycle budget on inputs with no
         // useful symbols. The single-file extractFile path already enforces
         // this; the bulk path used to silently skip the check.
-        if (stats.size > MAX_SOURCE_FILE_SIZE_BYTES) {
+        const maxFileSize = getMaxFileSize();
+        if (stats.size > maxFileSize) {
           await storeResult(filePath, content, stats, {
             nodes: [],
             edges: [],
             unresolvedReferences: [],
             errors: [{
-              message: `File exceeds max size (${stats.size} > ${MAX_SOURCE_FILE_SIZE_BYTES})`,
+              message: `File exceeds max size (${stats.size} > ${maxFileSize})`,
               filePath,
               severity: 'warning',
               code: 'size_exceeded',
@@ -3332,14 +3334,15 @@ export class ExtractionOrchestrator {
     const language = detectLanguage(relativePath, content, loadExtensionOverrides(this.rootDir), this.rootDir);
 
     // Check file size
-    if (stats.size > MAX_SOURCE_FILE_SIZE_BYTES) {
+    const maxFileSize = getMaxFileSize();
+    if (stats.size > maxFileSize) {
       const result: ExtractionResult = {
         nodes: [],
         edges: [],
         unresolvedReferences: [],
         errors: [
           {
-            message: `File exceeds max size (${stats.size} > ${MAX_SOURCE_FILE_SIZE_BYTES})`,
+            message: `File exceeds max size (${stats.size} > ${maxFileSize})`,
             filePath: relativePath,
             severity: 'warning',
             code: 'size_exceeded',

@@ -2,11 +2,33 @@ import * as fs from 'fs';
 import * as fsp from 'fs/promises';
 
 /**
- * Largest source file CodeGraph will parse or read during resolution. Generated
- * bundles, minified sources, and dependency archives above this limit provide no
- * useful symbols; 1 MB covers essentially all hand-written source.
+ * Default largest source file CodeGraph will parse or read during resolution.
+ * 10 MB covers essentially all hand-written source. Can be customized via
+ * the CODEGRAPH_MAX_FILE_SIZE environment variable (e.g. "20MB", "5242880").
  */
-export const MAX_SOURCE_FILE_SIZE_BYTES = 1024 * 1024;
+export const DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+export function parseMaxFileSize(val: string | undefined): number {
+  if (!val) return DEFAULT_MAX_FILE_SIZE;
+  const trimmed = val.trim().toUpperCase();
+  if (trimmed.endsWith('MB') || trimmed.endsWith('M')) {
+    const num = parseFloat(trimmed);
+    if (!isNaN(num) && num > 0) return Math.floor(num * 1024 * 1024);
+  }
+  if (trimmed.endsWith('KB') || trimmed.endsWith('K')) {
+    const num = parseFloat(trimmed);
+    if (!isNaN(num) && num > 0) return Math.floor(num * 1024);
+  }
+  const bytes = parseInt(trimmed, 10);
+  if (!isNaN(bytes) && bytes > 0) return bytes;
+  return DEFAULT_MAX_FILE_SIZE;
+}
+
+export function getMaxFileSize(): number {
+  return parseMaxFileSize(process.env.CODEGRAPH_MAX_FILE_SIZE);
+}
+
+export const MAX_SOURCE_FILE_SIZE_BYTES = DEFAULT_MAX_FILE_SIZE;
 
 /**
  * What stands in for the content of a file over MAX_SOURCE_FILE_SIZE_BYTES. Such a file is
@@ -28,7 +50,8 @@ export function oversizeStamp(size: number): string {
  * over the limit reads as drifted. `content` is only read within the limit.
  */
 export function indexedHashInput(size: number, content: () => string): string {
-  return size > MAX_SOURCE_FILE_SIZE_BYTES ? oversizeStamp(size) : content();
+  const limit = getMaxFileSize();
+  return size > limit ? oversizeStamp(size) : content();
 }
 
 /**
@@ -69,25 +92,26 @@ function assertRegularFile(stats: fs.Stats): void {
  * past the limit. Returns `bytes: null` for an oversize file.
  */
 export async function readBoundedSource(file: string): Promise<BoundedSource> {
+  const limit = getMaxFileSize();
   const initial = await fsp.stat(file);
   assertRegularFile(initial);
-  if (initial.size > MAX_SOURCE_FILE_SIZE_BYTES) return { stats: initial, bytes: null };
+  if (initial.size > limit) return { stats: initial, bytes: null };
   const handle = await fsp.open(file, 'r');
   try {
     let stats = await handle.stat();
     assertRegularFile(stats);
-    if (stats.size > MAX_SOURCE_FILE_SIZE_BYTES) return { stats, bytes: null };
+    if (stats.size > limit) return { stats, bytes: null };
     const chunks: Buffer[] = [];
     let size = 0;
-    while (size <= MAX_SOURCE_FILE_SIZE_BYTES) {
-      const chunk = Buffer.allocUnsafe(Math.min(READ_CHUNK_BYTES, MAX_SOURCE_FILE_SIZE_BYTES + 1 - size));
+    while (size <= limit) {
+      const chunk = Buffer.allocUnsafe(Math.min(READ_CHUNK_BYTES, limit + 1 - size));
       const { bytesRead } = await handle.read(chunk, 0, chunk.length, size);
       if (!bytesRead) break;
       chunks.push(chunk.subarray(0, bytesRead));
       size += bytesRead;
     }
     stats = await handle.stat();
-    if (size > MAX_SOURCE_FILE_SIZE_BYTES || stats.size > MAX_SOURCE_FILE_SIZE_BYTES) {
+    if (size > limit || stats.size > limit) {
       stats.size = Math.max(size, stats.size);
       return { stats, bytes: null };
     }
@@ -99,25 +123,26 @@ export async function readBoundedSource(file: string): Promise<BoundedSource> {
 
 /** Synchronous {@link readBoundedSource}. */
 export function readBoundedSourceSync(file: string): BoundedSource {
+  const limit = getMaxFileSize();
   const initial = fs.statSync(file);
   assertRegularFile(initial);
-  if (initial.size > MAX_SOURCE_FILE_SIZE_BYTES) return { stats: initial, bytes: null };
+  if (initial.size > limit) return { stats: initial, bytes: null };
   const fd = fs.openSync(file, 'r');
   try {
     let stats = fs.fstatSync(fd);
     assertRegularFile(stats);
-    if (stats.size > MAX_SOURCE_FILE_SIZE_BYTES) return { stats, bytes: null };
+    if (stats.size > limit) return { stats, bytes: null };
     const chunks: Buffer[] = [];
     let size = 0;
-    while (size <= MAX_SOURCE_FILE_SIZE_BYTES) {
-      const chunk = Buffer.allocUnsafe(Math.min(READ_CHUNK_BYTES, MAX_SOURCE_FILE_SIZE_BYTES + 1 - size));
+    while (size <= limit) {
+      const chunk = Buffer.allocUnsafe(Math.min(READ_CHUNK_BYTES, limit + 1 - size));
       const bytesRead = fs.readSync(fd, chunk, 0, chunk.length, size);
       if (!bytesRead) break;
       chunks.push(chunk.subarray(0, bytesRead));
       size += bytesRead;
     }
     stats = fs.fstatSync(fd);
-    if (size > MAX_SOURCE_FILE_SIZE_BYTES || stats.size > MAX_SOURCE_FILE_SIZE_BYTES) {
+    if (size > limit || stats.size > limit) {
       stats.size = Math.max(size, stats.size);
       return { stats, bytes: null };
     }
