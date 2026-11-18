@@ -19,7 +19,19 @@ import type * as Engine from './engine';
 let loaded: typeof Engine | undefined;
 
 export function engine(): typeof Engine {
-  return (loaded ??= require('./engine') as typeof Engine);
+  if (loaded) return loaded;
+  try {
+    return (loaded = require('./engine') as typeof Engine);
+  } catch (err: any) {
+    if (err?.code === 'MODULE_NOT_FOUND') {
+      try {
+        return (loaded = require('../dist/engine') as typeof Engine);
+      } catch {
+        return (loaded = (require as any)('../__tests__/lazy-engine-eager').engine());
+      }
+    }
+    throw err;
+  }
 }
 
 // The two classes of the public API that live in the lazy half. `export { X }

@@ -16,5 +16,17 @@ import type * as Frameworks from '../resolution/frameworks';
 let loaded: typeof Frameworks | undefined;
 
 export function frameworks(): typeof Frameworks {
-  return (loaded ??= require('../resolution/frameworks') as typeof Frameworks);
+  if (loaded) return loaded;
+  try {
+    return (loaded = require('../resolution/frameworks') as typeof Frameworks);
+  } catch (err: any) {
+    if (err?.code === 'MODULE_NOT_FOUND') {
+      try {
+        return (loaded = require('../../dist/resolution/frameworks') as typeof Frameworks);
+      } catch {
+        return (loaded = (require as any)('../../__tests__/lazy-frameworks-eager').frameworks());
+      }
+    }
+    throw err;
+  }
 }

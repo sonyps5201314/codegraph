@@ -79,11 +79,11 @@ export default defineConfig({
           // transform: see src/lazy-engine.ts.
           alias: [
             {
-              find: /^\.\/lazy-engine$/,
+              find: /(?:^|[\\/])lazy-engine(?:\.[jt]s)?$/,
               replacement: fileURLToPath(new URL('./__tests__/lazy-engine-eager.ts', import.meta.url)),
             },
             {
-              find: /^\.\/lazy-frameworks$/,
+              find: /(?:^|[\\/])lazy-frameworks(?:\.[jt]s)?$/,
               replacement: fileURLToPath(new URL('./__tests__/lazy-frameworks-eager.ts', import.meta.url)),
             },
           ],
